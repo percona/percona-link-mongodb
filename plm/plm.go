@@ -58,9 +58,9 @@ type Status struct {
 	Error error
 
 	// TotalLagTime is the current lag time in logical seconds between source and target clusters.
-	TotalLagTime *int64
+	TotalLagTime int64
 	// InitialSyncLagTime is the lag time during the initial sync.
-	InitialSyncLagTime *int64
+	InitialSyncLagTime int64
 	// InitialSyncCompleted indicates if the initial sync is completed.
 	InitialSyncCompleted bool
 
@@ -246,8 +246,6 @@ func (ml *PLM) Status(ctx context.Context) *Status {
 	}
 
 	if s.Repl.IsStarted() {
-		intialSyncLag := max(int64(s.Clone.FinishTS.T)-int64(s.Repl.LastReplicatedOpTime.T), 0)
-		s.InitialSyncLagTime = &intialSyncLag
 		s.InitialSyncCompleted = s.Repl.LastReplicatedOpTime.After(s.Clone.FinishTS)
 	}
 
@@ -263,14 +261,16 @@ func (ml *PLM) Status(ctx context.Context) *Status {
 		switch {
 		case !s.Repl.LastReplicatedOpTime.IsZero():
 			totalLag := int64(sourceTime.T) - int64(s.Repl.LastReplicatedOpTime.T)
-			s.TotalLagTime = &totalLag
+			s.TotalLagTime = totalLag
 		case !s.Clone.StartTS.IsZero():
 			totalLag := int64(sourceTime.T) - int64(s.Clone.StartTS.T)
-			s.TotalLagTime = &totalLag
+			s.TotalLagTime = totalLag
 		}
 	}
 
-	s.InitialSyncLagTime = s.TotalLagTime
+	if !s.InitialSyncCompleted {
+		s.InitialSyncLagTime = s.TotalLagTime
+	}
 
 	return s
 }
